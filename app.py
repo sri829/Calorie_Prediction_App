@@ -3,25 +3,28 @@ import pickle
 import numpy as np
 import os
 
+# Get absolute path of the current directory
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Define full paths to model files
+MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
+ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder.pkl")
+
 # Cache model loading for performance optimization
 @st.cache_resource
 def load_model():
-    # Get absolute path of current directory
-    base_path = os.path.dirname(__file__)
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(ENCODER_PATH):
+        st.error("🚨 Model or Label Encoder file is missing! Please check the deployment files.")
+        return None, None
 
-    # Construct full paths for model and label encoder
-    model_path = os.path.join(base_path, "model.pkl")
-    encoder_path = os.path.join(base_path, "label_encoder.pkl")
-
-    # Load model and label encoder safely
     try:
-        with open(model_path, 'rb') as f:
+        with open(MODEL_PATH, "rb") as f:
             model = pickle.load(f)
-        with open(encoder_path, 'rb') as f:
+        with open(ENCODER_PATH, "rb") as f:
             encoder = pickle.load(f)
         return model, encoder
-    except FileNotFoundError:
-        st.error("Model or label encoder file not found. Please check your repository.")
+    except Exception as e:
+        st.error(f"⚠️ Error loading model: {e}")
         return None, None
 
 
@@ -33,7 +36,7 @@ def main():
     model, encoder = load_model()
 
     if model is None or encoder is None:
-        st.error("Failed to load model or encoder. Please check deployment.")
+        st.error("🚨 Failed to load model. Check deployment logs.")
         return
 
     label_classes = encoder.classes_
