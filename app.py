@@ -1,69 +1,58 @@
 import streamlit as st
 import pickle
 import numpy as np
+import os
 
 # Cache model loading for performance optimization
 @st.cache_resource
 def load_model():
-    model = pickle.load(open('model.pkl', 'rb'))
-    encoder = pickle.load(open('label_encoder.pkl', 'rb'))
-    return model, encoder
+    # Get absolute path of current directory
+    base_path = os.path.dirname(__file__)
+
+    # Construct full paths for model and label encoder
+    model_path = os.path.join(base_path, "model.pkl")
+    encoder_path = os.path.join(base_path, "label_encoder.pkl")
+
+    # Load model and label encoder safely
+    try:
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        with open(encoder_path, 'rb') as f:
+            encoder = pickle.load(f)
+        return model, encoder
+    except FileNotFoundError:
+        st.error("Model or label encoder file not found. Please check your repository.")
+        return None, None
+
 
 def main():
     st.set_page_config(page_title="Calorie Prediction App", layout="centered")
-    st.title("🍽️ Calorie Prediction App")
-    
+    st.title("🔥 Calorie Prediction App")
+
+    # Load the model and encoder
     model, encoder = load_model()
+
+    if model is None or encoder is None:
+        st.error("Failed to load model or encoder. Please check deployment.")
+        return
+
     label_classes = encoder.classes_
-    
-    st.markdown("""
-    <style>
-        body {
-            background-image: url('https://img.freepik.com/free-photo/top-view-bowls-with-veggies-fruit-copy-space_23-2148585684.jpg?t=st=1741158623~exp=1741162223~hmac=8d0a0ca18d99d8c3a381027bf2493de9c1e100b293a241b98298d034ed55fa41&w=1060');
-            background-size:cover;
-            font-family: Arial, sans-serif;
-        }
-        .stApp {
-            background: rgba(0.2, 5.0, 0.5,0.2);
-            padding: 10px;
-            border-radius: 10px;
-            color: white;
-        }
-        .stButton>button {
-            background-color: #ff9800;
-            color: white;
-            font-size: 18px;
-            border-radius: 10px;
-            padding: 10px 20px;
-            border: none;
-            transition: 0.3s;
-        }
-        .stButton>button:hover {
-            background-color: #e68900;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Layout with two columns for better UX
-    col1, col2 = st.columns(2)
-    with col1:
-        label = st.selectbox("Select Food Label", label_classes)
-        weight = st.number_input("Weight (g)", min_value=18, max_value=1000, value=30)
-        protein = st.number_input("Protein (g)", min_value=0, max_value=1000, value=10)
-        carbohydrates = st.number_input("Carbohydrates (g)", min_value=0, max_value=1000, value=20)
-    
-    with col2:
-        fats = st.number_input("Fats (g)", min_value=0, max_value=1000, value=5)
-        fiber = st.number_input("Fiber (g)", min_value=0, max_value=1000, value=2)
-        sugars = st.number_input("Sugars (g)", min_value=0, max_value=1000, value=5)
-        sodium = st.number_input("Sodium (mg)", min_value=10, max_value=1000, value=10)
-    
-    encoded_label = encoder.transform([label])[0]
-    input_data = np.array([encoded_label, weight, protein, carbohydrates, fats, fiber, sugars, sodium]).reshape(1, -1)
-    
+
+    # Input fields
+    age = st.number_input("Enter Age:", min_value=0, max_value=100, step=1)
+    height = st.number_input("Enter Height (cm):", min_value=50.0, max_value=250.0, step=0.1)
+    weight = st.number_input("Enter Weight (kg):", min_value=20.0, max_value=200.0, step=0.1)
+    gender = st.selectbox("Select Gender", ["Male", "Female"])
+
+    # Encoding gender
+    gender_encoded = 1 if gender == "Male" else 0
+
+    # Predict Button
     if st.button("Predict Calories"):
-        predicted_calories = model.predict(input_data)[0]
-        st.success(f"Predicted Calories: **{predicted_calories:.2f} kcal**")
+        input_data = np.array([[age, height, weight, gender_encoded]])
+        prediction = model.predict(input_data)[0]
+        st.success(f"Estimated Daily Calorie Intake: {prediction:.2f} kcal")
+
 
 if __name__ == "__main__":
     main()
